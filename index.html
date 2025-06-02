@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sales Role-Play Tool Prototype</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0; padding: 0;
+    background: #f5f7fa;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  header {
+    background-color: #34495e;
+    color: white;
+    padding: 1rem 2rem;
+    font-size: 1.2rem;
+    font-weight: bold;
+  }
+  #main-container {
+    display: flex;
+    flex: 1;
+    padding: 1rem 2rem;
+    gap: 1.5rem;
+  }
+  #chat-container {
+    flex: 3;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  #chat-messages {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
+  }
+  .msg {
+    max-width: 70%;
+    margin-bottom: 1rem;
+    padding: 0.7rem 1rem;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    line-height: 1.3;
+  }
+  .buyer {
+    background: #ecf0f1;
+    align-self: flex-start;
+  }
+  .rep {
+    background: #2980b9;
+    color: white;
+    align-self: flex-end;
+  }
+  #chat-input-area {
+    display: flex;
+    padding: 1rem;
+    gap: 0.5rem;
+  }
+  #chat-input {
+    flex: 1;
+    padding: 0.6rem 1rem;
+    font-size: 1rem;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+  }
+  button {
+    background: #2980b9;
+    border: none;
+    color: white;
+    padding: 0.6rem 1rem;
+    font-size: 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  button:hover {
+    background: #3498db;
+  }
+  #status {
+    padding: 0.5rem 1rem;
+    background: #e8f5e8;
+    border-bottom: 1px solid #ddd;
+    font-size: 0.9rem;
+    color: #2d5a2d;
+  }
+</style>
+</head>
+<body>
+
+<header>Sales Role-Play Training Tool</header>
+
+<div id="main-container">
+  <div id="chat-container">
+    <div id="status">Ready to start roleplay! Type your opening message.</div>
+    <div id="chat-messages"></div>
+    <div id="chat-input-area">
+      <input type="text" id="chat-input" placeholder="Type your message here..." />
+      <button id="send-btn">Send</button>
+      <button id="end-stage-btn" style="background:#e67e22;">End Stage</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const chatMessages = document.getElementById('chat-messages');
+  const chatInput = document.getElementById('chat-input');
+  const sendBtn = document.getElementById('send-btn');
+  const endStageBtn = document.getElementById('end-stage-btn');
+  const status = document.getElementById('status');
+
+  const sessionId = 'user-' + Math.floor(Math.random() * 1000000);
+  let conversation = [];
+
+  function renderMessage(sender, text) {
+    const div = document.createElement('div');
+    div.classList.add('msg', sender === 'buyer' ? 'buyer' : 'rep');
+    div.textContent = text;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  async function sendMessage(text) {
+    renderMessage('rep', text);
+    conversation.push({ role: 'user', content: text });
+    
+    status.textContent = 'Sending message...';
+    status.style.background = '#fff3cd';
+
+    try {
+      const response = await fetch('http://localhost:3000/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, message: text }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.reply) {
+        renderMessage('buyer', data.reply);
+        conversation.push({ role: 'assistant', content: data.reply });
+        status.textContent = 'Ready for your next message!';
+        status.style.background = '#e8f5e8';
+      }
+    } catch (error) {
+      renderMessage('buyer', 'Error: Could not reach backend. Make sure the server is running on port 3000.');
+      console.error('Error details:', error);
+      status.textContent = 'Error: Backend connection failed';
+      status.style.background = '#f8d7da';
+    }
+  }
+
+  sendBtn.addEventListener('click', () => {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    chatInput.value = '';
+    sendMessage(text);
+  });
+
+  chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      const text = chatInput.value.trim();
+      if (!text) return;
+      chatInput.value = '';
+      sendMessage(text);
+    }
+  });
+
+  endStageBtn.addEventListener('click', () => {
+    sendMessage('End stage');
+  });
+</script>
+
+</body>
+</html>
